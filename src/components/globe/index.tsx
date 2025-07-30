@@ -1,5 +1,5 @@
 'use client';
-import { useTexture } from '@react-three/drei';
+import { useTexture, Html } from '@react-three/drei';
 import { useTheme } from '@/contexts/theme-context';
 import { useState } from 'react';
 
