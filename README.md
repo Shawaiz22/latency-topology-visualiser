@@ -1,118 +1,165 @@
-# Latency Topology Visualizer
+# Cryptocurrency Exchange Latency Visualizer
 
-A modern, interactive 3D visualization tool for monitoring and analyzing latency across global server infrastructure. Built with Next.js, React Three Fiber, and TypeScript.
+A comprehensive 3D visualization platform for monitoring and analyzing latency across global cryptocurrency exchange infrastructure. This application provides real-time and historical insights into network performance between major exchanges and cloud provider regions.
 
 ![Screenshot of the Latency Topology Visualizer](public/screenshot.png)
 
-## Features
+## ✨ Features
 
-- 🌍 Interactive 3D globe with server locations
-- 📊 Real-time and historical latency visualization
-- 🔄 Animated connections between servers
-- 🎨 Color-coded server status indicators
-- 🔍 Filter by provider, status, and latency range
-- 📈 Historical latency trends with time range selection
-- 🌓 Light/dark theme support
-- 📤 Export data as JSON, CSV, or PNG
+### 🌐 3D World Map
+- Interactive 3D globe with smooth camera controls (rotate, zoom, pan)
+- Real-time rendering of exchange server locations
+- Responsive design supporting both desktop and mobile devices
 
-## Tech Stack
+### 🔍 Exchange Server Visualization
+- 3D markers for major cryptocurrency exchanges (Binance, Coinbase, Kraken, etc.)
+- Color-coded markers by cloud provider (AWS, GCP, Azure)
+- Detailed tooltips with server information on hover/click
+- Search and filter functionality for quick navigation
 
-- **Framework**: [Next.js](https://nextjs.org/)
-- **3D Rendering**: [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction)
-- **UI Components**: [Tailwind CSS](https://tailwindcss.com/)
-- **Charts**: [Recharts](https://recharts.org/)
-- **State Management**: React Context API
+### ⚡ Real-time Latency Monitoring
+- Animated connections showing latency between nodes
+- Color-coded latency indicators (green/yellow/red)
+- Pulsing effects for active connections
+- Configurable update intervals
+
+### ☁️ Cloud Provider Regions
+- Visual representation of AWS, GCP, and Azure regions
+- Region boundaries and server clusters
+- Toggle visibility of different cloud providers
+- Region-specific performance metrics
+
+### 📊 Historical Data Analysis
+- Time-series charts for latency trends
+- Configurable time ranges (1h, 24h, 7d, 30d)
+- Statistical analysis (min, max, avg latency)
+- Exportable reports in multiple formats
+
+### 🎛️ Interactive Controls
+- Intuitive control panel with multiple tabs
+- Server and region filtering
+- Theme toggling (light/dark mode)
+- Performance optimization settings
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js](https://nextjs.org/) (App Router)
+- **3D Rendering**: [React Three Fiber](https://docs.pmnd.rs/react-three-fiber) + [Drei](https://github.com/pmndrs/drei)
+- **State Management**: React Context API + useState (Internal)
+- **Data Visualization**: [Recharts](https://recharts.org/)
 - **Type Safety**: TypeScript
+- **Package Manager**: pnpm
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - Node.js 18.0.0 or later
-- npm, yarn, or pnpm
+- pnpm (recommended) or npm/yarn
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/latency-topology-visualiser.git
-   cd latency-topology-visualiser
-   ```
+1. Clone the repository
 
 2. Install dependencies:
    ```bash
-   npm install
-   # or
-   yarn
-   # or
    pnpm install
    ```
 
-3. Run the development server:
+3. Start the development server:
    ```bash
-   npm run dev
-   # or
-   yarn dev
-   # or
    pnpm dev
    ```
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Usage
+## 🎮 Usage Guide
 
-### Viewing Server Information
-- Click on any server marker to view detailed information
-- Hover over connections to see latency between servers
-- Use the control panel to filter and customize the view
+### Navigation
+- **Rotate**: Click and drag the globe
+- **Zoom**: Scroll or pinch (on touch devices)
+- **Pan**: Right-click and drag or two-finger drag (on touch devices)
+- **Reset View**: Click the home button in the control panel
 
 ### Control Panel
-- **Servers Tab**: View and filter server list
+- **Servers Tab**: View and filter exchange servers
 - **Regions Tab**: Toggle cloud provider regions
-- **Settings Tab**: Configure display options
-  - Toggle connections, heatmap, and topology view
-  - Adjust theme (light/dark)
+- **Settings Tab**: Configure visualization preferences
+  - Toggle connection animations
+  - Adjust performance settings
+  - Change theme (light/dark)
 
-### Exporting Data
-Click the "Export" button to download:
-- **JSON**: Complete server data
-- **CSV**: Tabular data for analysis
-- **PNG**: Screenshot of the current view
+### Data Interaction
+- **Click** on any marker for detailed information
+- **Hover** over connections to see latency metrics
+- Adjust the **time range** to view historical data
 
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 src/
-├── app/                  # Next.js app router
-├── components/           # Reusable components
-│   ├── charts/           # Data visualization components
-│   ├── controls/         # Control panel and UI elements
-│   ├── globe/            # 3D globe and markers
-│   └── topology/         # Topology visualization
-├── data/                 # Mock data and types
-└── lib/                  # Utility functions
+├── app/                    # Next.js app router
+│   └── (main)/             # Main application routes
+│       └── page.tsx        # Home page component
+│
+├── components/
+│   ├── charts/            # Data visualization components
+│   ├── controls/          # Control panel and UI elements
+│   │   ├── control-panel.tsx
+│   │   └── tabs/          # Tabbed interface components
+│   │
+│   ├── globe/             # 3D visualization components
+│   │   ├── connections.tsx  # Animated latency connections
+│   │   ├── server-markers.tsx  # Exchange server markers
+│   │   └── region-markers.tsx  # Cloud region markers
+│   
+│
+├── data/                  # Data models and mock data
+│   ├── exchanges.ts       # Exchange server data
+│   └── regions.ts         # Cloud region definitions
+│
+├── lib/                   # Utility functions
+│   ├── utils.ts           # Helper functions
+│   └── three-utils.ts     # Three.js utilities
+│
+└── styles/                # Global styles
+    └── globals.css        # Global CSS variables and styles
 ```
 
-## Customization
+## 🧩 Customization
 
-### Adding New Servers
-Edit the server data in `src/data/exchanges.ts` to add or modify server information.
+### Adding New Exchanges
+Edit `src/data/exchanges.ts` to add or modify exchange server information. Each server should include:
+- Unique ID
+- Display name and code
+- Geographic coordinates (lat/lon)
+- Cloud provider and region
+- Connection details
 
 ### Styling
-- Global styles are in `app/globals.css`
-- Component-specific styles use Tailwind CSS
-- Theme colors are defined in `tailwind.config.js`
+- Colors and theming can be customized in `tailwind.config.js`
+- 3D object materials and lighting can be adjusted in the respective component files
 
-## Performance Considerations
+## 📝 Assumptions
 
-- Server-side rendering is disabled for 3D components to improve performance
-- Data is filtered and memoized to prevent unnecessary re-renders
-- Large datasets should be paginated or virtualized
+1. **Data Source**: The application currently uses mock data. In a production environment, you would connect to a real-time API for latency data.
+2. **Performance**: The 3D visualization is optimized for modern browsers with WebGL support.
+3. **Mobile Support**: Basic touch controls are implemented, but the best experience is on desktop.
+4. **Security**: No sensitive data is stored or transmitted in the current implementation.
 
-## Contributing
+## 🚀 Deployment
 
-Contributions are welcome! Please open an issue or submit a pull request.
+### Building for Production
+```bash
+pnpm build
+```
 
-## License
+### Starting Production Server
+```bash
+pnpm start
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Static Export (Optional)
+```bash
+pnpm export
+```

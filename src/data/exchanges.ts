@@ -290,8 +290,8 @@ const baseServers: Omit<ExchangeServer, 'regionConnections'>[] = [
     lon: 103.8198,
     provider: 'AWS',
     region: 'ap-southeast-1',
-    status: 'online',
-    lastPing: 28,
+    status: 'degraded',
+    lastPing: 100,
     connections: [
       { targetId: 'deribit-nl', latency: 45, lastUpdated: new Date().toISOString() },
       { targetId: 'okx-de', latency: 38, lastUpdated: new Date().toISOString() },

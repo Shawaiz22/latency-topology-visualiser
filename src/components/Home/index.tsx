@@ -77,7 +77,6 @@ const Home = () => {
                     shadow-mapSize-width={2048}
                     shadow-mapSize-height={2048}
                 />
-                <directionalLight position={[-5, -3, -5]} intensity={isDark ? 0.5 : 0.3} />
 
                 <PerspectiveCamera makeDefault position={[0, 0, 4]} />
 
