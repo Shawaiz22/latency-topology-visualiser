@@ -5,7 +5,7 @@ import { ExchangeServer } from '@/data/exchanges';
 import { ServerTabContent } from './tabs/server-tab';
 import { RegionsTabContent } from './tabs/regions-tab';
 import { SettingsTabContent } from './tabs/settings-tab';
-import { useScreenSize } from '@/hooks/useScreenSize';
+import { useScreenSize } from '@/hooks/use-screen-size';
 import ThemeToggle from '../theme-toggle';
 
 type ControlPanelProps = {
