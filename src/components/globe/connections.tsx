@@ -1,15 +1,18 @@
 'use client';
 import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
-import { ExchangeServer } from '@/data/exchanges';
+import { ExchangeServer, CLOUD_REGIONS } from '@/data/exchanges';
 import { latLonToVector3 } from '@/lib/geo';
 
+type ConnectionTarget = ExchangeServer | { id: string; lat: number; lon: number };
+
 type ConnectionProps = {
-  from: ExchangeServer;
-  to: ExchangeServer;
+  from: ConnectionTarget;
+  to: ConnectionTarget;
   latency: number;
   highlighted?: boolean;
   priority?: 'high' | 'medium' | 'low';
+  isRegionConnection?: boolean;
 };
 
 function getLatencyColor(latency: number, highlighted: boolean = false): string {
@@ -30,27 +33,54 @@ export default function Connection({
   to, 
   latency, 
   highlighted = false, 
-  priority = 'medium' 
+  priority = 'medium', 
+  isRegionConnection = false 
 }: ConnectionProps) {
   const points = useMemo(() => {
     const start = latLonToVector3(from.lat, from.lon).multiplyScalar(1.01);
     const end = latLonToVector3(to.lat, to.lon).multiplyScalar(1.01);
     
-    // Create a slight arc for better visibility
+    // For region connections, create a more pronounced arc
+    if (isRegionConnection) {
+      const mid = start.clone().lerp(end, 0.5);
+      const normal = mid.clone().normalize();
+      // Higher arc for region connections to make them stand out
+      mid.add(normal.multiplyScalar(0.5));
+      return [start, mid, end];
+    }
+    
+    // For server-to-server connections, use a subtle arc
     const mid = start.clone().lerp(end, 0.5);
     const normal = mid.clone().normalize();
     mid.add(normal.multiplyScalar(0.2));
     
     return [start, mid, end];
-  }, [from, to]);
+  }, [from, to, isRegionConnection]);
 
-  const color = getLatencyColor(latency, highlighted);
+  const color = isRegionConnection 
+    ? highlighted ? '#7c3aed' : 'rgba(124, 58, 237, 0.6)' // Purple for region connections
+    : getLatencyColor(latency, highlighted);
+    
   // Adjust animation and appearance based on priority and highlight state
-  const dashSize = highlighted ? 0.15 : priority === 'high' ? 0.12 : 0.1;
-  const dashGap = highlighted ? 0.03 : priority === 'high' ? 0.04 : 0.05;
-  const speed = highlighted ? 0.8 : priority === 'high' ? 0.7 : 0.5;
-  const lineWidth = highlighted ? 2 : priority === 'high' ? 1.5 : 1;
-  const opacity = highlighted ? 0.9 : priority === 'high' ? 0.7 : 0.5;
+  const dashSize = isRegionConnection 
+    ? highlighted ? 0.2 : 0.15 // Bigger dashes for region connections
+    : highlighted ? 0.15 : priority === 'high' ? 0.12 : 0.1;
+    
+  const dashGap = isRegionConnection 
+    ? 0.05 // Slightly bigger gap for region connections
+    : highlighted ? 0.03 : priority === 'high' ? 0.04 : 0.05;
+    
+  const speed = isRegionConnection 
+    ? 1.0 // Faster animation for region connections
+    : highlighted ? 0.8 : priority === 'high' ? 0.7 : 0.5;
+    
+  const lineWidth = isRegionConnection 
+    ? highlighted ? 2.5 : 2.0 // Thicker lines for region connections
+    : highlighted ? 2 : priority === 'high' ? 1.5 : 1;
+    
+  const opacity = isRegionConnection 
+    ? highlighted ? 1.0 : 0.8 // More opaque for region connections
+    : highlighted ? 0.9 : priority === 'high' ? 0.7 : 0.5;
   
   return (
     <>
@@ -87,15 +117,34 @@ type ConnectionsProps = {
 };
 
 export function Connections({ servers, selectedId }: ConnectionsProps) {
+  // Get all cloud regions
+  const cloudRegions = useMemo(() => {
+    return servers.flatMap(server => 
+      (server.regionConnections || []).map(conn => ({
+        ...CLOUD_REGIONS.find(r => r.id === conn.regionId)!,
+        connectionLatency: conn.latency,
+        connectionLastUpdated: conn.lastUpdated
+      }))
+    ).filter((region, index, self) => 
+      index === self.findIndex(r => r.id === region.id)
+    );
+  }, [servers]);
+
   // Filter and process connections
   const { connections, highlightedConnections } = useMemo(() => {
     const result = {
-      connections: [] as { from: ExchangeServer; to: ExchangeServer; latency: number }[],
-      highlightedConnections: new Set<string>()
+      connections: [] as { 
+        from: ConnectionTarget; 
+        to: ConnectionTarget; 
+        latency: number;
+        isRegionConnection: boolean;
+      }[],
+      highlightedConnections: new Set<string>(),
+      regionConnections: new Set<string>()
     };
     const added = new Set<string>();
     
-    // First pass: collect all connections
+    // First pass: collect all server-to-server connections
     servers.forEach((server) => {
       server.connections?.forEach((conn) => {
         const target = servers.find((s) => s.id === conn.targetId);
@@ -108,6 +157,7 @@ export function Connections({ servers, selectedId }: ConnectionsProps) {
               from: server,
               to: target,
               latency: conn.latency,
+              isRegionConnection: false
             };
             result.connections.push(connection);
             
@@ -118,21 +168,45 @@ export function Connections({ servers, selectedId }: ConnectionsProps) {
           }
         }
       });
+
+      // Add server-to-region connections
+      (server.regionConnections || []).forEach(regionConn => {
+        const region = cloudRegions.find(r => r.id === regionConn.regionId);
+        if (region) {
+          const key = `${server.id}_${region.id}`;
+          const connection = {
+            from: server,
+            to: region,
+            latency: regionConn.latency,
+            isRegionConnection: true
+          };
+          result.connections.push(connection);
+          
+          // If this server is selected, highlight its region connection
+          if (selectedId && server.id === selectedId) {
+            result.highlightedConnections.add(key);
+            result.regionConnections.add(region.id);
+          }
+        }
+      });
     });
     
     return result;
-  }, [servers, selectedId]);
+  }, [servers, selectedId, cloudRegions]);
   
-  // Group connections by latency for better rendering performance
-  const { lowLatency, mediumLatency, highLatency } = useMemo(() => {
+  // Group connections by latency and type (region vs server)
+  const { lowLatency, mediumLatency, highLatency, regionConnections } = useMemo(() => {
     const result = {
       lowLatency: [] as typeof connections,
       mediumLatency: [] as typeof connections,
       highLatency: [] as typeof connections,
+      regionConnections: [] as typeof connections
     };
     
     connections.forEach(conn => {
-      if (conn.latency < 50) {
+      if (conn.isRegionConnection) {
+        result.regionConnections.push(conn);
+      } else if (conn.latency < 50) {
         result.lowLatency.push(conn);
       } else if (conn.latency < 100) {
         result.mediumLatency.push(conn);
@@ -143,12 +217,14 @@ export function Connections({ servers, selectedId }: ConnectionsProps) {
     
     return result;
   }, [connections]);
-  // Render connections in batches by latency for better performance
+
+  // Render connections in batches by type and latency for better performance
   return (
     <>
-      {lowLatency.map((conn, idx) => {
-        const key = `${conn.from.id}-${conn.to.id}-${idx}`;
-        const isHighlighted = highlightedConnections.has([conn.from.id, conn.to.id].sort().join('_'));
+      {/* Region connections - rendered on top with a distinct style */}
+      {regionConnections.map((conn, idx) => {
+        const key = `region-${conn.from.id}-${conn.to.id}-${idx}`;
+        const isHighlighted = highlightedConnections.has(`${conn.from.id}_${conn.to.id}`);
         return (
           <Connection
             key={key}
@@ -157,37 +233,44 @@ export function Connections({ servers, selectedId }: ConnectionsProps) {
             latency={conn.latency}
             highlighted={isHighlighted}
             priority="high"
+            isRegionConnection
           />
         );
       })}
-      {mediumLatency.map((conn, idx) => {
-        const key = `${conn.from.id}-${conn.to.id}-${idx + lowLatency.length}`;
-        const isHighlighted = highlightedConnections.has([conn.from.id, conn.to.id].sort().join('_'));
-        return (
-          <Connection
-            key={key}
-            from={conn.from}
-            to={conn.to}
-            latency={conn.latency}
-            highlighted={isHighlighted}
-            priority="medium"
-          />
-        );
-      })}
-      {highLatency.map((conn, idx) => {
-        const key = `${conn.from.id}-${conn.to.id}-${idx + lowLatency.length + mediumLatency.length}`;
-        const isHighlighted = highlightedConnections.has([conn.from.id, conn.to.id].sort().join('_'));
-        return (
-          <Connection
-            key={key}
-            from={conn.from}
-            to={conn.to}
-            latency={conn.latency}
-            highlighted={isHighlighted}
-            priority="low"
-          />
-        );
-      })}
+      
+      {/* Server-to-server connections */}
+      {lowLatency.map((conn, idx) => (
+        <Connection
+          key={`low-${conn.from.id}-${conn.to.id}-${idx}`}
+          from={conn.from}
+          to={conn.to}
+          latency={conn.latency}
+          highlighted={highlightedConnections.has([conn.from.id, conn.to.id].sort().join('_'))}
+          priority="high"
+        />
+      ))}
+      
+      {mediumLatency.map((conn, idx) => (
+        <Connection
+          key={`med-${conn.from.id}-${conn.to.id}-${idx}`}
+          from={conn.from}
+          to={conn.to}
+          latency={conn.latency}
+          highlighted={highlightedConnections.has([conn.from.id, conn.to.id].sort().join('_'))}
+          priority="medium"
+        />
+      ))}
+      
+      {highLatency.map((conn, idx) => (
+        <Connection
+          key={`high-${conn.from.id}-${conn.to.id}-${idx}`}
+          from={conn.from}
+          to={conn.to}
+          latency={conn.latency}
+          highlighted={highlightedConnections.has([conn.from.id, conn.to.id].sort().join('_'))}
+          priority="low"
+        />
+      ))}
     </>
   );
 }

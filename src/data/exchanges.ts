@@ -13,18 +13,25 @@ export interface ExchangeServer {
     targetId: string;
     latency: number;
     lastUpdated: string;
+    type?: 'server' | 'region'; // Add type to distinguish between server and region connections
   }[];
   historicalLatency?: Array<{
     timestamp: string;
     latency: number;
     status: 'online' | 'degraded' | 'offline';
   }>;
+  regionConnections?: {
+    regionId: string;
+    latency: number;
+    lastUpdated: string;
+  }[];
 }
 
 export interface CloudRegion {
   id: string;
   name: string;
   provider: 'AWS' | 'GCP' | 'Azure';
+  region: string; // e.g., 'us-east-1', 'europe-west1', etc.
   lat: number;
   lon: number;
   servers: number;
@@ -74,20 +81,206 @@ function generateHistoricalData(
 }
 
 // Helper function to generate connections between nodes
-function generateConnections(sourceId: string, possibleTargets: string[], minLatency: number, maxLatency: number) {
-  const numConnections = Math.floor(Math.random() * 4) + 1; // 1-4 connections
+function generateConnections(sourceId: string, possibleTargets: string[], minLatency: number, maxLatency: number, type: 'server' | 'region' = 'server') {
+  const numConnections = type === 'server' 
+    ? Math.floor(Math.random() * 4) + 1 // 1-4 connections for servers
+    : 1; // Only 1 connection to region
+    
   const shuffled = [...possibleTargets].sort(() => 0.5 - Math.random());
   const selected = shuffled.slice(0, numConnections);
   
   return selected.map(targetId => ({
     targetId,
     latency: Math.floor(Math.random() * (maxLatency - minLatency + 1)) + minLatency,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
+    type
   }));
 }
 
-// Generate 30 exchange servers
-export const EXCHANGE_SERVERS: ExchangeServer[] = [
+// Helper function to generate region connections for a server
+function generateRegionConnections(server: ExchangeServer, regions: CloudRegion[]) {
+  // Find the region this server belongs to
+  const serverRegion = regions.find(r => 
+    r.provider === server.provider && 
+    r.region === server.region
+  );
+  
+  if (!serverRegion) return [];
+  
+  // Return connection to the region
+  return [{
+    regionId: serverRegion.id,
+    latency: Math.floor(Math.random() * 10) + 1, // Typically very low latency to own region
+    lastUpdated: new Date().toISOString()
+  }];
+}
+
+// First, define the cloud regions
+const CLOUD_REGIONS: CloudRegion[] = [
+  // AWS
+  {
+    id: 'aws-ap-southeast-1',
+    name: 'AWS Asia Pacific (Singapore)',
+    provider: 'AWS',
+    region: 'ap-southeast-1',
+    lat: 1.3521,
+    lon: 103.8198,
+    servers: 42,
+    boundaries: [
+      { lat: 1.0, lon: 103.0 },
+      { lat: 1.7, lon: 104.6 },
+      { lat: 1.8, lon: 104.0 },
+      { lat: 1.5, lon: 103.2 },
+    ],
+  },
+    // AWS US East (N. Virginia)
+  {
+    id: 'aws-us-east-1',
+    name: 'AWS US East (N. Virginia)',
+    provider: 'AWS',
+    region: 'us-east-1',
+    lat: 38.1300,
+    lon: -78.4500,
+    servers: 85,
+    boundaries: [
+      { lat: 37.0, lon: -79.0 },
+      { lat: 39.0, lon: -77.0 },
+      { lat: 38.5, lon: -77.5 },
+      { lat: 37.5, lon: -78.5 },
+    ],
+  },
+  // AWS Europe (Ireland)
+  {
+    id: 'aws-eu-west-1',
+    name: 'AWS Europe (Ireland)',
+    provider: 'AWS',
+    region: 'eu-west-1',
+    lat: 53.3478,
+    lon: -6.2597,
+    servers: 58,
+    boundaries: [
+      { lat: 52.5, lon: -7.0 },
+      { lat: 54.0, lon: -5.5 },
+      { lat: 53.5, lon: -6.0 },
+      { lat: 53.0, lon: -6.5 },
+    ],
+  },
+  // GCP Asia East (Taiwan)
+  {
+    id: 'gcp-asia-east1',
+    name: 'GCP Asia East (Taiwan)',
+    provider: 'GCP',
+    region: 'asia-east1',
+    lat: 25.0330,
+    lon: 121.5654,
+    servers: 35,
+    boundaries: [
+      { lat: 24.5, lon: 121.0 },
+      { lat: 25.5, lon: 122.0 },
+      { lat: 25.2, lon: 121.8 },
+      { lat: 24.8, lon: 121.3 },
+    ],
+  },
+  // GCP US Central (Iowa)
+  {
+    id: 'gcp-us-central1',
+    name: 'GCP US Central (Iowa)',
+    provider: 'GCP',
+    region: 'us-central1',
+    lat: 41.8780,
+    lon: -93.0977,
+    servers: 62,
+    boundaries: [
+      { lat: 41.0, lon: -94.0 },
+      { lat: 42.5, lon: -92.5 },
+      { lat: 42.0, lon: -93.0 },
+      { lat: 41.5, lon: -93.5 },
+    ],
+  },
+  // GCP Europe West (Netherlands)
+  {
+    id: 'gcp-europe-west4',
+    name: 'GCP Europe West (Netherlands)',
+    provider: 'GCP',
+    region: 'europe-west4',
+    lat: 52.3676,
+    lon: 4.9041,
+    servers: 48,
+    boundaries: [
+      { lat: 52.0, lon: 4.0 },
+      { lat: 52.7, lon: 5.5 },
+      { lat: 52.5, lon: 5.0 },
+      { lat: 52.2, lon: 4.5 },
+    ],
+  },
+  // Azure East US (Virginia)
+  {
+    id: 'azure-eastus',
+    name: 'Azure East US (Virginia)',
+    provider: 'Azure',
+    region: 'eastus',
+    lat: 37.3719,
+    lon: -79.8164,
+    servers: 55,
+    boundaries: [
+      { lat: 36.5, lon: -80.5 },
+      { lat: 38.0, lon: -79.0 },
+      { lat: 37.5, lon: -79.5 },
+      { lat: 37.0, lon: -80.0 },
+    ],
+  },
+  // Azure Southeast Asia (Singapore)
+  {
+    id: 'azure-southeastasia',
+    name: 'Azure Southeast Asia (Singapore)',
+    provider: 'Azure',
+    region: 'southeastasia',
+    lat: 1.3521,
+    lon: 103.8198,
+    servers: 40,
+    boundaries: [
+      { lat: 1.0, lon: 103.0 },
+      { lat: 1.7, lon: 104.6 },
+      { lat: 1.5, lon: 104.0 },
+      { lat: 1.2, lon: 103.5 },
+    ],
+  },
+  // Azure West Europe (Netherlands)
+  {
+    id: 'azure-westeurope',
+    name: 'Azure West Europe (Netherlands)',
+    provider: 'Azure',
+    region: 'westeurope',
+    lat: 52.3667,
+    lon: 4.9000,
+    servers: 50,
+    boundaries: [
+      { lat: 52.0, lon: 4.0 },
+      { lat: 52.7, lon: 5.5 },
+      { lat: 52.5, lon: 5.0 },
+      { lat: 52.2, lon: 4.5 },
+    ],
+  },
+  // Azure Japan East (Tokyo)
+  {
+    id: 'azure-japaneast',
+    name: 'Azure Japan East (Tokyo)',
+    provider: 'Azure',
+    region: 'japaneast',
+    lat: 35.6762,
+    lon: 139.6503,
+    servers: 38,
+    boundaries: [
+      { lat: 35.0, lon: 139.0 },
+      { lat: 36.0, lon: 140.5 },
+      { lat: 35.8, lon: 140.0 },
+      { lat: 35.3, lon: 139.5 },
+    ],
+  },
+];
+
+// First, define the servers without region connections
+const baseServers: Omit<ExchangeServer, 'regionConnections'>[] = [
   // Asia-Pacific
   {
     id: 'binance-sg',
@@ -563,151 +756,11 @@ export const EXCHANGE_SERVERS: ExchangeServer[] = [
   },
 ];
 
-// 10 Cloud Regions
-export const CLOUD_REGIONS: CloudRegion[] = [
-  // AWS
-  {
-    id: 'aws-ap-southeast-1',
-    name: 'AWS Asia Pacific (Singapore)',
-    provider: 'AWS',
-    lat: 1.3521,
-    lon: 103.8198,
-    servers: 42,
-    boundaries: [
-      { lat: 1.0, lon: 103.0 },
-      { lat: 1.7, lon: 104.6 },
-      { lat: 1.8, lon: 104.0 },
-      { lat: 1.5, lon: 103.2 },
-    ],
-  },
-  {
-    id: 'aws-us-east-1',
-    name: 'AWS US East (N. Virginia)',
-    provider: 'AWS',
-    lat: 38.1300,
-    lon: -78.4500,
-    servers: 85,
-    boundaries: [
-      { lat: 37.0, lon: -79.0 },
-      { lat: 39.0, lon: -77.0 },
-      { lat: 38.5, lon: -77.5 },
-      { lat: 37.5, lon: -78.5 },
-    ],
-  },
-  {
-    id: 'aws-eu-west-1',
-    name: 'AWS Europe (Ireland)',
-    provider: 'AWS',
-    lat: 53.3478,
-    lon: -6.2597,
-    servers: 58,
-    boundaries: [
-      { lat: 52.5, lon: -7.0 },
-      { lat: 54.0, lon: -5.5 },
-      { lat: 53.5, lon: -6.0 },
-      { lat: 53.0, lon: -6.5 },
-    ],
-  },
-  
-  // GCP
-  {
-    id: 'gcp-asia-east1',
-    name: 'GCP Asia East (Taiwan)',
-    provider: 'GCP',
-    lat: 25.0330,
-    lon: 121.5654,
-    servers: 35,
-    boundaries: [
-      { lat: 24.5, lon: 121.0 },
-      { lat: 25.5, lon: 122.0 },
-      { lat: 25.2, lon: 121.8 },
-      { lat: 24.8, lon: 121.3 },
-    ],
-  },
-  {
-    id: 'gcp-us-central1',
-    name: 'GCP US Central (Iowa)',
-    provider: 'GCP',
-    lat: 41.8780,
-    lon: -93.0977,
-    servers: 62,
-    boundaries: [
-      { lat: 41.0, lon: -94.0 },
-      { lat: 42.5, lon: -92.5 },
-      { lat: 42.0, lon: -93.0 },
-      { lat: 41.5, lon: -93.5 },
-    ],
-  },
-  {
-    id: 'gcp-europe-west4',
-    name: 'GCP Europe West (Netherlands)',
-    provider: 'GCP',
-    lat: 52.3676,
-    lon: 4.9041,
-    servers: 48,
-    boundaries: [
-      { lat: 52.0, lon: 4.0 },
-      { lat: 52.7, lon: 5.5 },
-      { lat: 52.5, lon: 5.0 },
-      { lat: 52.2, lon: 4.5 },
-    ],
-  },
-  
-  // Azure
-  {
-    id: 'azure-eastus',
-    name: 'Azure East US (Virginia)',
-    provider: 'Azure',
-    lat: 37.3719,
-    lon: -79.8164,
-    servers: 55,
-    boundaries: [
-      { lat: 36.5, lon: -80.5 },
-      { lat: 38.0, lon: -79.0 },
-      { lat: 37.5, lon: -79.5 },
-      { lat: 37.0, lon: -80.0 },
-    ],
-  },
-  {
-    id: 'azure-southeastasia',
-    name: 'Azure Southeast Asia (Singapore)',
-    provider: 'Azure',
-    lat: 1.3521,
-    lon: 103.8198,
-    servers: 40,
-    boundaries: [
-      { lat: 1.0, lon: 103.0 },
-      { lat: 1.7, lon: 104.6 },
-      { lat: 1.5, lon: 104.0 },
-      { lat: 1.2, lon: 103.5 },
-    ],
-  },
-  {
-    id: 'azure-westeurope',
-    name: 'Azure West Europe (Netherlands)',
-    provider: 'Azure',
-    lat: 52.3667,
-    lon: 4.9000,
-    servers: 50,
-    boundaries: [
-      { lat: 52.0, lon: 4.0 },
-      { lat: 52.7, lon: 5.5 },
-      { lat: 52.5, lon: 5.0 },
-      { lat: 52.2, lon: 4.5 },
-    ],
-  },
-  {
-    id: 'azure-japaneast',
-    name: 'Azure Japan East (Tokyo)',
-    provider: 'Azure',
-    lat: 35.6762,
-    lon: 139.6503,
-    servers: 38,
-    boundaries: [
-      { lat: 35.0, lon: 139.0 },
-      { lat: 36.0, lon: 140.5 },
-      { lat: 35.8, lon: 140.0 },
-      { lat: 35.3, lon: 139.5 },
-    ],
-  },
-];
+// Add region connections to each server
+const EXCHANGE_SERVERS: ExchangeServer[] = baseServers.map(server => ({
+  ...server,
+  regionConnections: generateRegionConnections(server, CLOUD_REGIONS)
+}));
+
+// Export the cloud regions and servers
+export { CLOUD_REGIONS, EXCHANGE_SERVERS };
