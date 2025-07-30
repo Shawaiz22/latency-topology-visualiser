@@ -1,17 +1,17 @@
 'use client';
-import { useTexture, Html } from '@react-three/drei';
+import { useTexture, Html, useProgress } from '@react-three/drei';
 import { useTheme } from '@/contexts/theme-context';
-import { useState } from 'react';
 
 export default function Globe() {
-  const [loading, setLoading] = useState(true);
-  const textureLight = useTexture('/textures/earth-map.jpg', undefined, () => setLoading(false));
-  const textureDark = useTexture('/textures/earth-map-2.jpg', undefined, () => setLoading(false));
   const { theme } = useTheme();
+  const textureLight = useTexture('/textures/earth-map.jpg');
+  const textureDark = useTexture('/textures/earth-map-2.jpg');
   const texture = theme === 'dark' ? textureDark : textureLight;
 
-  // Show loader while texture is loading
-  if (loading) {
+  // useProgress reports loading state for all assets in <Canvas>
+  const { active } = useProgress();
+
+  if (active) {
     return (
       <mesh>
         <Html center>
