@@ -2,11 +2,10 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { ExchangeServer } from '@/data/exchanges';
-
-
 import { ServerTabContent } from './tabs/server-tab';
 import { RegionsTabContent } from './tabs/regions-tab';
 import { SettingsTabContent } from './tabs/settings-tab';
+import { useScreenSize } from '@/hooks/useScreenSize';
 import ThemeToggle from '../theme-toggle';
 
 type ControlPanelProps = {
@@ -50,7 +49,9 @@ export default function ControlPanel({
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
-  const [isOpen, setIsOpen] = useState(true);
+  const { isMobile } = useScreenSize();
+
+  const [isOpen, setIsOpen] = useState(!isMobile);
   const [activeTab, setActiveTab] = useState<'servers' | 'regions' | 'settings'>('servers');
 
   // Get the currently selected server
