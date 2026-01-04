@@ -59,7 +59,7 @@ A comprehensive 3D visualization platform for monitoring and analyzing latency a
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository.
 
 2. Install dependencies:
    ```bash
