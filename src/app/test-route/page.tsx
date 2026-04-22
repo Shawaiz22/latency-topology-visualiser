@@ -1,8 +1,8 @@
 'use client';
-
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function TokenTest() {
+function TokenTest() {
     const searchParams = useSearchParams();
     const url = searchParams.get('url');
 
@@ -14,5 +14,13 @@ export default function TokenTest() {
         <div className='h-[calc(100vh-60px)] w-full'>
             <iframe src={decodeURIComponent(url)} className='h-full w-full' />
         </div>
+    );
+}
+
+export default function Page() {
+    return (
+        <Suspense fallback={<div className="p-4">Loading...</div>}>
+            <TokenTest />
+        </Suspense>
     );
 }
